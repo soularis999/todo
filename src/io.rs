@@ -34,7 +34,8 @@ pub fn load_todos() -> Result<Vec<Todo>> {
  * # Examples
  *
  * ```
- * let todos = load_todos_with_file("~/.todos.json").unwrap();
+ * use todo::model::Todo;
+ * let todos: Vec<Todo> = todo::io::load_todos_from_file("/tmp/test_todos.json").unwrap();
  * ```
  */
 pub fn load_todos_from_file<P: AsRef<path::Path>>(file: P) -> Result<Vec<Todo>> {
@@ -75,7 +76,8 @@ fn read_data(file: &mut std::fs::File) -> Result<Vec<Todo>, serde_json::Error> {
  * # Examples
  *
  * ```
- * save_todos(&todos).unwrap();
+ * let todos: Vec<todo::model::Todo> = vec![];
+ * todo::io::save_todos(&todos).unwrap();
  * ```
  */
 pub fn save_todos(todos: &[Todo]) -> Result<()> {
@@ -95,7 +97,8 @@ pub fn save_todos(todos: &[Todo]) -> Result<()> {
  * # Examples
  *
  * ```
- * save_todos(&todos, "~/.todos.json").unwrap();
+ * let todos: Vec<todo::model::Todo> = vec![];
+ * todo::io::save_todos_to_file(&todos, "/tmp/test_todos.json").unwrap();
  * ```
  */
 pub fn save_todos_to_file<P: AsRef<path::Path>>(todos: &[Todo], file: P) -> Result<()> {

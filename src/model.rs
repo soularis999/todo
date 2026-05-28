@@ -51,7 +51,20 @@ impl Todo {
             return false;
         }
 
-        tags.iter().any(|tag| this_tags.contains(tag))
+        tags.iter()
+            .map(|tag| tag.to_lowercase())
+            .any(|tag| this_tags.contains(&tag))
+    }
+
+    pub fn add_tags(&mut self, tags: Option<Vec<String>>) {
+        if let Some(tags) = tags {
+            let mut existing = self.tags.take().unwrap_or_default();
+            existing.extend(tags);
+            existing.iter_mut().for_each(|t| *t = t.to_lowercase());
+            existing.sort();
+            existing.dedup();
+            self.tags = Some(existing);
+        }
     }
 }
 
@@ -96,7 +109,7 @@ pub struct AddArgs {
 impl Into<Todo> for AddArgs {
     fn into(self) -> Todo {
         let mut todo = Todo::new(self.title, self.priority);
-        todo.tags = self.tags;
+        todo.add_tags(self.tags);
         todo
     }
 }
@@ -138,7 +151,7 @@ mod tests {
     #[test]
     fn test_matches_tags_with_no_new_tags() {
         let mut todo = Todo::new("test".to_string(), Priority::Medium);
-        todo.tags = Some(vec!["tag1".to_string()]);
+        todo.add_tags(Some(vec!["tag1".to_string()]));
         let tags = vec![];
         assert!(todo.matches_tags(&tags));
     }
@@ -146,7 +159,7 @@ mod tests {
     #[test]
     fn test_matches_tags_with_no_matching_tags() {
         let mut todo = Todo::new("test".to_string(), Priority::Medium);
-        todo.tags = Some(vec!["tag1".to_string()]);
+        todo.add_tags(Some(vec!["tag1".to_string()]));
         let tags = vec!["tag2".to_string()];
         assert!(!todo.matches_tags(&tags));
     }
@@ -154,8 +167,16 @@ mod tests {
     #[test]
     fn test_matches_tags_with_matching_tags() {
         let mut todo = Todo::new("test".to_string(), Priority::Medium);
-        todo.tags = Some(vec!["tag1".to_string(), "tag2".to_string()]);
+        todo.add_tags(Some(vec!["tag1".to_string(), "tag2".to_string()]));
         let tags = vec!["tag2".to_string(), "tag3".to_string()];
+        assert!(todo.matches_tags(&tags));
+    }
+
+    #[test]
+    fn test_matches_tags_with_matching_tags_ignore_case() {
+        let mut todo = Todo::new("test".to_string(), Priority::Medium);
+        todo.add_tags(Some(vec!["taG1".to_string(), "taG2".to_string()]));
+        let tags = vec!["tag3".to_string(), "tag2".to_string()];
         assert!(todo.matches_tags(&tags));
     }
 }
