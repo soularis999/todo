@@ -13,6 +13,9 @@ fn main() -> Result<()> {
         Commands::UnComplete(args) => process::set_complete(args.pos, false, &mut data).and_then(|todos| io::save_todos(todos)),
         // non mutating
         Commands::List(args) => print_todos(args, data),
+        // TUI
+        #[cfg(feature = "tui")]
+        Commands::Tui => todo::tui::run(data),
     }?;
 
     Ok(())
@@ -21,12 +24,19 @@ fn main() -> Result<()> {
 fn print_todos(args: ListArgs, todos: Vec<Todo>) -> Result<()> {
     let verbose = args.verbose.unwrap_or(false);
     let trimmed = process::filter_for_list(args, todos)?;
-
     for (index, todo) in trimmed.iter().enumerate() {
         if verbose {
-            println!("{}: {}", index, todo);
+            println!("{} {}: {}", 
+                if todo.completed { "✓" } else { "☐" },
+                index, 
+                todo);
         } else {
-            println!("{}: {}", index, todo.title);
+            println!("{} {}: {} {}", 
+                if todo.completed { "✓" } else { "☐" },
+                index,
+                todo.title,
+                todo.priority
+            );
         }
 
     }

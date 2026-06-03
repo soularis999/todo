@@ -1,3 +1,5 @@
+use std::fmt::{self, Display};
+
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use clap::{Parser, ValueEnum};
@@ -10,6 +12,7 @@ pub struct Todo {
     pub title: String,
     pub completed: bool,
     pub priority: Priority,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<String>>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
@@ -69,10 +72,33 @@ impl Todo {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ValueEnum)]
+#[serde(rename_all = "lowercase")]
 pub enum Priority {
     Low,
     Medium,
     High,
+}
+
+impl Priority {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Priority::Low => "low",
+            Priority::Medium => "medium",
+            Priority::High => "high",
+        }
+    }
+}
+
+impl Default for Priority {
+    fn default() -> Self {
+        Priority::Medium
+    }
+}
+
+impl Display for Priority {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Parser)]
@@ -94,6 +120,9 @@ pub enum Commands {
     Complete(CompleteArgs),
     #[command(alias = "ucp")]
     UnComplete(CompleteArgs),
+    #[cfg(feature="tui")]
+    #[command(alias = "t")]
+    Tui,
 }
 
 #[derive(Debug, Clone, PartialEq, Parser)]
