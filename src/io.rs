@@ -104,9 +104,9 @@ pub fn save_todos(todos: &[Todo]) -> Result<()> {
 pub fn save_todos_to_file<P: AsRef<path::Path>>(todos: &[Todo], file: P) -> Result<()> {
     let path_ref = file.as_ref();
     let mut file = OpenOptions::new()
-        .read(true)       // Enable reading
         .write(true)      // Enable writing
         .create(true)     // Create if doesn't exist
+        .truncate(true)
         .open(path_ref)
         .with_context(|| format!("failed to open file: {}", path_ref.display()))?;
     write_data(todos, &mut file).with_context(|| format!("failed to save todos to file: {}", path_ref.display()))

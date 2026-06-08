@@ -1,6 +1,6 @@
 use ratatui::{Frame, layout::{Alignment, Constraint, Direction, Layout}, style::{Color, Modifier, Style}, text::{Line, Span}, widgets::{Block, Borders, List, ListItem, Paragraph}};
 
-use crate::{model::{Priority, Todo}, tui::app::{self, InputMode}};
+use crate::{model::{Priority}, tui::app::{self, InputMode}};
 
 
 pub fn draw(frame: &mut Frame, app: &app::UiApp) {
@@ -15,7 +15,7 @@ pub fn draw(frame: &mut Frame, app: &app::UiApp) {
         .split(frame.size());
 
     // Title
-    let title = Paragraph::new("📝 Todo TUI")
+    let title = Paragraph::new("📝 Todos")
         .block(
             Block::default()
                 .borders(Borders::ALL)
@@ -75,17 +75,17 @@ pub fn draw(frame: &mut Frame, app: &app::UiApp) {
     frame.render_stateful_widget(list, chunks[1], &mut state);
 
     // Status bar
-    let status_text = match app.mode {
+    let status_text = match &app.mode {
         InputMode::Normal => {
             // let filter_info = app.filter_tag().map(|t| format!(" | Filter: {}", t)).unwrap_or_default();
             // let show_info = if app.show_completed() { " | All" } else { "" };
             // let msg = app.message().map(|m| format!(" | {}", m)).unwrap_or_default();
             format!(
-                "a:add  space:toggle  d:delete  e:priority  f:filter  c:all  r:reload  q:quit  {}",
+                "a:add  space:toggle  d:delete q:quit  {}",
                 /*filter_info, show_info, msg,*/ " ".repeat(50)
             )
         }
-        _ => format!("{}{}", app.input_prompt, app.input_buffer),
+        InputMode::Changing { step, buffer, .. } => format!("{} {}", step, buffer),
     };
 
     let status_style = match app.mode {
@@ -94,8 +94,16 @@ pub fn draw(frame: &mut Frame, app: &app::UiApp) {
         _ => Style::default().fg(Color::Yellow),
     };
 
-    let status = Paragraph::new(status_text)
+    let error_text = app.error.as_deref().unwrap_or_default();
+    let error_style = Style::default().fg(Color::Red);
+
+    let [left, right] = Layout::horizontal([Constraint::Fill(1), Constraint::Length(error_text.len() as u16)])
+        .areas(chunks[2]);
+    frame.render_widget(Paragraph::new(status_text)
         .block(Block::default().borders(Borders::ALL))
-        .style(status_style);
-    frame.render_widget(status, chunks[2]);
+        .style(status_style), left);
+    frame.render_widget(Paragraph::new(error_text)
+        .block(Block::default().borders(Borders::ALL))
+        .style(error_style)
+        .alignment(Alignment::Right), right);
 }

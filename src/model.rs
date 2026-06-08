@@ -1,4 +1,4 @@
-use std::fmt::{self, Display};
+use std::{fmt::{self, Display}, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -31,8 +31,14 @@ impl std::fmt::Display for Todo {
     }
 }
 
+impl Default for Todo {
+    fn default() -> Self {
+        Self::new(String::new(), Priority::default())
+    }
+}
+
 impl Todo {
-    fn new(title: String, priority: Priority) -> Self {
+    pub fn new(title: String, priority: Priority) -> Self {
         let now_utc: chrono::DateTime<chrono::Utc> = chrono::Utc::now();
         Todo { id: Default::default(),
             title,
@@ -98,6 +104,19 @@ impl Default for Priority {
 impl Display for Priority {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
+    }
+}
+
+impl FromStr for Priority {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "low" => Ok(Priority::Low),
+            "medium" => Ok(Priority::Medium),
+            "high" => Ok(Priority::High),
+            _ => anyhow::bail!("Invalid priority: {}", s),
+        }
     }
 }
 
