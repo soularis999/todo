@@ -86,6 +86,7 @@ pub fn draw(frame: &mut Frame, app: &app::UiApp) {
             )
         }
         InputMode::Changing { step, buffer, .. } => format!("{} {}", step, buffer),
+        InputMode::ConfirmingDelete { .. } => format!("Delete? (y/n): "),
     };
 
     let status_style = match app.mode {

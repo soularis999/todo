@@ -20,8 +20,15 @@ pub struct UiApp {
 #[derive(Debug, Clone, PartialEq)]
 pub enum InputMode {
     Normal,
-    Changing { step: ModStep, buffer: String, index: Option<usize>, todo: Todo },
-    // ConfirmingDelete,
+    Changing {
+        step: ModStep,
+        buffer: String,
+        index: Option<usize>,
+        todo: Todo,
+    },
+    ConfirmingDelete {
+        index: usize,
+    },
     // Filtering,
 }
 
@@ -53,15 +60,21 @@ impl ModStep {
         // write state machine for parsing input
         match self {
             ModStep::Todo => {
-                todo.title = if input.is_empty() { "New Task".to_string() } else { input.to_string() };
+                todo.title = if input.is_empty() {
+                    "New Task".to_string()
+                } else {
+                    input.to_string()
+                };
                 Ok(())
             }
             ModStep::Priority => {
                 if input.is_empty() {
                     return Ok(());
                 }
-                
-                let priority = input.parse().with_context(|| format!("Cannot parse priority: {}", input))?;
+
+                let priority = input
+                    .parse()
+                    .with_context(|| format!("Cannot parse priority: {}", input))?;
                 todo.priority = priority;
                 Ok(())
             }
@@ -87,7 +100,6 @@ impl Default for ModStep {
         Self::Todo
     }
 }
-
 
 impl UiApp {
     pub fn new(todos: Vec<Todo>) -> Self {
@@ -147,20 +159,21 @@ impl UiApp {
                 KeyCode::Char('k') | KeyCode::Up => self.move_selection(-1),
                 KeyCode::Char(' ') => self.toggle_complete()?,
                 KeyCode::Char('a') => {
-                    self.mode = InputMode::Changing { 
-                        step: ModStep::Todo, 
-                        buffer: String::new(), 
-                        index: None, 
+                    self.mode = InputMode::Changing {
+                        step: ModStep::Todo,
+                        buffer: String::new(),
+                        index: None,
                         todo: Todo::default(),
                     };
                 }
-                //         KeyCode::Char('d') => {
-                //             if self.get_selected_id().is_some() {
-                //                 self.input_mode = InputMode::ConfirmingDelete;
-                //                 self.input_prompt = "Delete? (y/n): ".to_string();
-                //                 self.input_buffer.clear();
-                //             }
-                //         }
+                KeyCode::Char('d') => {
+                    println!("Selected index: {:?}", self.state.selected());
+                    if self.state.selected().is_some() {
+                        self.mode = InputMode::ConfirmingDelete {
+                            index: self.state.selected().unwrap(),
+                        };
+                    }
+                }
                 //         KeyCode::Char('e') => {
                 //             if self.get_selected_id().is_some() {
                 //                 self.input_mode = InputMode::EditingPriority;
@@ -185,10 +198,15 @@ impl UiApp {
                 //         }
                 _ => {}
             },
-            InputMode::Changing { step, buffer, index, todo } => match key {
+            InputMode::Changing {
+                step,
+                buffer,
+                index,
+                todo,
+            } => match key {
                 KeyCode::Enter => {
                     step.parse(buffer, todo)?;
-                    
+
                     let Some(next) = step.next() else {
                         match index {
                             Some(i) => {
@@ -201,12 +219,12 @@ impl UiApp {
                         self.mode = InputMode::Normal;
                         return Ok(false);
                     };
-                    
-                    self.mode = InputMode::Changing { 
-                        step: next, 
-                        buffer: Default::default(), 
-                        index: *index, 
-                        todo: todo.clone(), 
+
+                    self.mode = InputMode::Changing {
+                        step: next,
+                        buffer: Default::default(),
+                        index: *index,
+                        todo: todo.clone(),
                     };
                 }
                 KeyCode::Esc => {
@@ -218,58 +236,55 @@ impl UiApp {
                 }
                 _ => {}
             },
-            //     InputMode::ConfirmingDelete => {
-            //         if key == KeyCode::Char('y') || key == KeyCode::Char('Y') {
-            //             if let Some(id) = self.get_selected_id() {
-            //                 operations::delete_task(&mut self.tasks, id);
-            //                 TodoStore::save(&self.tasks)?;
-            //                 self.apply_filter();
-            //                 self.set_message("Deleted");
-            //             }
-            //         }
-            //         self.input_mode = InputMode::Normal;
-            //         self.input_buffer.clear();
-            //     }
-            //     InputMode::EditingPriority => match key {
-            //         KeyCode::Enter => {
-            //             if let Some(id) = self.get_selected_id() {
-            //                 let priority = Priority::from_str(&self.input_buffer);
-            //                 operations::update_priority(&mut self.tasks, id, priority);
-            //                 TodoStore::save(&self.tasks)?;
-            //                 self.set_message("Priority updated");
-            //             }
-            //             self.input_mode = InputMode::Normal;
-            //             self.input_buffer.clear();
-            //         }
-            //         KeyCode::Esc => {
-            //             self.input_mode = InputMode::Normal;
-            //             self.input_buffer.clear();
-            //         }
-            //         KeyCode::Char(c) => self.input_buffer.push(c),
-            //         KeyCode::Backspace => { self.input_buffer.pop(); }
-            //         _ => {}
-            //     }
-            //     InputMode::Filtering => match key {
-            //         KeyCode::Enter => {
-            //             let input = self.input_buffer.trim();
-            //             self.filter_tag = if input.is_empty() { None } else { Some(input.to_string()) };
-            //             self.apply_filter();
-            //             self.set_message(&format!("Filter: {}", self.filter_tag.as_deref().unwrap_or("none")));
-            //             self.input_mode = InputMode::Normal;
-            //             self.input_buffer.clear();
-            //         }
-            //         KeyCode::Esc => {
-            //             self.input_mode = InputMode::Normal;
-            //             self.input_buffer.clear();
-            //         }
-            //         KeyCode::Char(c) => self.input_buffer.push(c),
-            //         KeyCode::Backspace => { self.input_buffer.pop(); }
-            //         _ => {}
+            InputMode::ConfirmingDelete { index } => {
+                if key == KeyCode::Char('y') || key == KeyCode::Char('Y') {
+                    self.todos.remove(*index);
+                }
+                self.mode = InputMode::Normal;
+            } //     InputMode::EditingPriority => match key {
+              //         KeyCode::Enter => {
+              //             if let Some(id) = self.get_selected_id() {
+              //                 let priority = Priority::from_str(&self.input_buffer);
+              //                 operations::update_priority(&mut self.tasks, id, priority);
+              //                 TodoStore::save(&self.tasks)?;
+              //                 self.set_message("Priority updated");
+              //             }
+              //             self.input_mode = InputMode::Normal;
+              //             self.input_buffer.clear();
+              //         }
+              //         KeyCode::Esc => {
+              //             self.input_mode = InputMode::Normal;
+              //             self.input_buffer.clear();
+              //         }
+              //         KeyCode::Char(c) => self.input_buffer.push(c),
+              //         KeyCode::Backspace => { self.input_buffer.pop(); }
+              //         _ => {}
+              //     }
+              //     InputMode::Filtering => match key {
+              //         KeyCode::Enter => {
+              //             let input = self.input_buffer.trim();
+              //             self.filter_tag = if input.is_empty() { None } else { Some(input.to_string()) };
+              //             self.apply_filter();
+              //             self.set_message(&format!("Filter: {}", self.filter_tag.as_deref().unwrap_or("none")));
+              //             self.input_mode = InputMode::Normal;
+              //             self.input_buffer.clear();
+              //         }
+              //         KeyCode::Esc => {
+              //             self.input_mode = InputMode::Normal;
+              //             self.input_buffer.clear();
+              //         }
+              //         KeyCode::Char(c) => self.input_buffer.push(c),
+              //         KeyCode::Backspace => { self.input_buffer.pop(); }
+              //         _ => {}
         }
         Ok(false)
     }
 
     fn move_selection(&mut self, delta: isize) {
+        if self.todos.is_empty() {
+            return;
+        }
+        
         let current = self.state.selected().unwrap_or(0);
         let new_idx = if delta < 0 {
             current.saturating_sub((-delta) as usize)
