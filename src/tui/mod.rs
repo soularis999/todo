@@ -1,5 +1,6 @@
 mod app;
 mod ui;
+mod model;
 
 use anyhow::Result;
 use app::UiApp;

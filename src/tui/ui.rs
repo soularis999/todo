@@ -1,6 +1,6 @@
 use ratatui::{Frame, layout::{Alignment, Constraint, Direction, Layout}, style::{Color, Modifier, Style}, text::{Line, Span}, widgets::{Block, Borders, List, ListItem, Paragraph}};
 
-use crate::{model::{Priority}, tui::app::{self, InputMode}};
+use crate::{model::Priority, tui::{app::{self}, model::InputMode}};
 
 
 pub fn draw(frame: &mut Frame, app: &app::UiApp) {
@@ -26,8 +26,7 @@ pub fn draw(frame: &mut Frame, app: &app::UiApp) {
     frame.render_widget(title, chunks[0]);
 
     let items: Vec<ListItem> = app
-        .todos
-        .iter()
+        .todo_iter()
         .enumerate()
         .map(|(index, todo)| {
             let checkbox = if todo.completed { "✓" } else { "☐" };
@@ -37,7 +36,7 @@ pub fn draw(frame: &mut Frame, app: &app::UiApp) {
                 Priority::High => Color::Red,
             };
 
-            let style = if Some(index) == app.state.selected() {
+            let style = if app.is_selected(index) {
                 Style::default().bg(Color::DarkGray)
             } else {
                 Style::default()
@@ -68,14 +67,14 @@ pub fn draw(frame: &mut Frame, app: &app::UiApp) {
         .collect();
 
     let list = List::new(items)
-        .block(Block::default().title(format!(" Todos ({}) ", app.todos.len())).borders(Borders::ALL))
+        .block(Block::default().title(format!(" Todos ({}) ", app.len())).borders(Borders::ALL))
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
-    let mut state = app.state.clone();
+    let mut state = app.state().clone();
     frame.render_stateful_widget(list, chunks[1], &mut state);
 
     // Status bar
-    let status_text = match &app.mode {
+    let status_text = match app.mode() {
         InputMode::Normal => {
             // let filter_info = app.filter_tag().map(|t| format!(" | Filter: {}", t)).unwrap_or_default();
             // let show_info = if app.show_completed() { " | All" } else { "" };
@@ -85,17 +84,17 @@ pub fn draw(frame: &mut Frame, app: &app::UiApp) {
                 /*filter_info, show_info, msg,*/ " ".repeat(50)
             )
         }
-        InputMode::Changing { step, buffer, .. } => format!("{} {}", step, buffer),
+        InputMode::Changing(state) => format!("{} {}", state.kind(), state.buffer()),
         InputMode::ConfirmingDelete { .. } => format!("Delete? (y/n): "),
     };
 
-    let status_style = match app.mode {
+    let status_style = match app.mode() {
         InputMode::Normal => Style::default().fg(Color::Gray),
         // InputMode::ConfirmingDelete => Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
         _ => Style::default().fg(Color::Yellow),
     };
 
-    let error_text = app.error.as_deref().unwrap_or_default();
+    let error_text = app.error().unwrap_or_default();
     let error_style = Style::default().fg(Color::Red);
 
     let [left, right] = Layout::horizontal([Constraint::Fill(1), Constraint::Length(error_text.len() as u16)])
