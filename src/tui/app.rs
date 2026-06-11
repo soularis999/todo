@@ -143,8 +143,8 @@ impl UiApp {
                     return Ok(false)
                 }
                 KeyCode::Esc => self.mode = InputMode::Normal,
-                KeyCode::Char(c) => state.push(c),
-                KeyCode::Backspace => state.pop(),
+                KeyCode::Char(c) => { state.push(c); },
+                KeyCode::Backspace => { state.pop(); },
                 _ => {}
             },
             InputMode::ConfirmingDelete(state) => {

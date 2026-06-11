@@ -115,6 +115,7 @@ impl FromStr for Priority {
             "low" => Ok(Priority::Low),
             "medium" => Ok(Priority::Medium),
             "high" => Ok(Priority::High),
+            "" => Ok(Priority::default()),
             _ => anyhow::bail!("Invalid priority: {}", s),
         }
     }
