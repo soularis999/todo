@@ -1,44 +1,81 @@
+use anyhow::{Context, Result};
 use clap::Parser;
-use anyhow::Result;
-use todo::{io, model::{Commands, ListArgs, Todo}, process};
+use todo::{
+    cli::model::{Commands, ListArgs},
+    io,
+    model::{EditTodo, Todo, Todos},
+};
 
 fn main() -> Result<()> {
-    let args = todo::model::Args::parse();
-    let mut data: Vec<Todo> = io::load_todos()?;
+    let args = todo::cli::model::Args::parse();
+    let mut data: Todos = io::load_todos()?;
 
     match args.command {
-        Commands::Add(args) => process::add(args, &mut data).and_then(|todos| io::save_todos(todos)),
-        Commands::Edit(args) => process::edit(args, &mut data).and_then(|todos| io::save_todos(todos)),
-        Commands::Complete(args) => process::set_complete(args.pos, true, &mut data).and_then(|todos| io::save_todos(todos)),
-        Commands::UnComplete(args) => process::set_complete(args.pos, false, &mut data).and_then(|todos| io::save_todos(todos)),
+        Commands::Add(args) => {
+            let todo: Todo = args.try_into()?;
+            data.add(todo)?;
+            io::save_todos(&data)?;
+        }
+        Commands::Edit(args) => {
+            let mut todo: EditTodo<'_> = data
+                .get_mut(&args.id)
+                .with_context(|| format!("Todo with id {} not found", args.id))?;
+            todo.priority = args.priority;
+            todo.tags = args.tags;
+            todo.finish()?;
+            io::save_todos(&data)?;
+        }
+        Commands::Complete(args) => {
+            let mut todo: EditTodo<'_> = data
+                .get_mut(&args.id)
+                .with_context(|| format!("Todo with id {} not found", args.id))?;
+            todo.completed = Some(true);
+            todo.finish()?;
+            io::save_todos(&data)?;
+        }
+        Commands::UnComplete(args) => {
+            let mut todo: EditTodo<'_> = data
+                .get_mut(&args.id)
+                .with_context(|| format!("Todo with id {} not found", args.id))?;
+            todo.completed = Some(false);
+            todo.finish()?;
+            io::save_todos(&data)?;
+        }
         // non mutating
-        Commands::List(args) => print_todos(args, data),
+        Commands::List(args) => {
+            print_todos(&args, &data)?;
+        },
         // TUI
         #[cfg(feature = "tui")]
-        Commands::Tui => todo::tui::run(data),
-    }?;
+        Commands::Tui => {
+            //todo::tui::run(data),
+        }
+    };
 
     Ok(())
 }
 
-fn print_todos(args: ListArgs, todos: Vec<Todo>) -> Result<()> {
+fn print_todos(args: &ListArgs, todos: &Todos) -> Result<()> {
     let verbose = args.verbose.unwrap_or(false);
-    let trimmed = process::filter_for_list(args, todos)?;
-    for (index, todo) in trimmed.iter().enumerate() {
+    // let trimmed = process::filter_for_list(args, todos)?;
+    let trimmed = todos.filter()?;
+    for todo in trimmed.iter() {
         if verbose {
-            println!("{} {}: {}", 
+            println!(
+                "{} {}: {}",
                 if todo.completed { "✓" } else { "☐" },
-                index, 
-                todo);
+                todo.id,
+                todo
+            );
         } else {
-            println!("{} {}: {} {}", 
+            println!(
+                "{} {}: {} {}",
                 if todo.completed { "✓" } else { "☐" },
-                index,
+                todo.id,
                 todo.title,
                 todo.priority
             );
         }
-
     }
     Ok(())
 }
