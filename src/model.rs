@@ -51,22 +51,24 @@ impl Todos {
         self.todos.is_empty()
     }
 
-    pub fn filter(&self) -> anyhow::Result<Vec<&Todo>> {
-        // let tags: &[String] = args.tags.as_deref().unwrap_or_default();
-        // let verbose = args.verbose.unwrap_or(false);
-        //
-        // if tags.is_empty() {
-        // return Ok(todos)
-        // }
-        //
-        let new_todo = self
-            .todos
-            .iter()
-            .map(|(_id, todo)| todo)
-            // .filter(|todo| todo.matches_tags(tags))
-            // .filter(|todo| verbose || !todo.completed)
-            .collect::<Vec<_>>();
-        Ok(new_todo)
+    /**
+     * Visits each todo in the collection, applying the given function and counting the number of todos that match.
+     *
+     * # Arguments
+     *
+     * * `f` - A function that takes a `Todo` and returns `true` if the todo matches the criteria, `false` otherwise.
+     *
+     * # Returns
+     *
+     * The number of todos that match the criteria.
+     */
+    pub fn visit(&self, f: impl Fn(&Todo) -> anyhow::Result<bool>) -> anyhow::Result<usize> {
+        let mut count = 0;
+        for todo in self.todos.values() {
+            count += 1;
+            if !f(todo)? { break; }
+        }
+        Ok(count)
     }
 }
 
@@ -78,7 +80,7 @@ impl Todos {
  * ```
  * use todo::model::Todos;
  * use todo::model::Priority;
- * 
+ *
  * let mut todos = Todos::new();
  * let todo_item = todo::make_todo!("Example", Priority::Medium).unwrap().into_owned();
  * let id = todos.add(todo_item).unwrap();
@@ -279,10 +281,10 @@ impl Todo {
      * use todo::model::Todo;
      *
      * let mut todo = todo::make_todo!().unwrap().into_owned();
-     * 
+     *
      * let mut edit_todo = todo.edit();
      * edit_todo.title = Some("Buy groceries".to_string());
-     * 
+     *
      * let todo = edit_todo.finish().unwrap();
      * assert_eq!(todo.title, "Buy groceries");
      * ```
@@ -645,37 +647,50 @@ mod tests {
         Ok(())
     }
 
-    // #[test]
-    // fn test_update() {
-    //     let mut todos = Todos::new();
-    //     let args = AddArgs {
-    //         title: "test title".to_string(),
-    //         priority: Priority::Medium,
-    //         tags: Some(vec!["tag1".to_string(), "tag2".to_string()]),
-    //     };
-    //     todos.add(args.clone()).unwrap();
-    //     assert_eq!(todos.todos.len(), 1);
-    //     assert_eq!(todos.todos[&0usize].title, "test title");
-    //     assert_eq!(todos.todos[&0usize].priority, Priority::Medium);
-    //     assert_eq!(todos.todos[&0usize].completed, false);
-    //     assert_eq!(todos.todos[&0usize].tags.len(), 2);
-    //     assert!(todos.todos[&0usize].tags.contains(&"tag1".to_string()));
-    //     assert!(todos.todos[&0usize].tags.contains(&"tag2".to_string()));
+    #[test]
+    fn test_visit_one() -> anyhow::Result<()> {
+        let mut todos = Todos::new();
+        assert_eq!(todos.visit(|_| Ok(true))?, 0);
+                
+        let todo: Cow<Todo> = make_todo!("test title", Priority::Medium, vec!["tag1", "tag2"])?;
+        todos.add(todo.clone().into_owned())?;
 
-    //     let args = EditArgs {
-    //         priority: Some(Priority::Low),
-    //         tags: Some(vec!["TAG3".to_string(), "TAG2".to_string()]),
-    //         id: 0,
-    //     };
+        assert_eq!(todos.len(), 1);
+        assert!(!todos.is_empty());
 
-    //     todos.edit(args).unwrap();
-    //     assert_eq!(todos.todos.len(), 1);
-    //     assert_eq!(todos.todos[&0usize].title, "test title");
-    //     assert_eq!(todos.todos[&0usize].priority, Priority::Low);
-    //     assert_eq!(todos.todos[&0usize].completed, false);
-    //     assert_eq!(todos.todos[&0usize].tags.len(), 3);
-    //     assert!(todos.todos[&0usize].tags.contains(&"tag1".to_string()));
-    //     assert!(todos.todos[&0usize].tags.contains(&"tag2".to_string()));
-    //     assert!(todos.todos[&0usize].tags.contains(&"tag3".to_string()));
-    // }
+        let owned: Todo = todo.into_owned();
+        assert_eq!(
+            todos.visit(|todo| {
+                assert_eq!(todo.title, owned.title);
+                assert_eq!(todo.priority, owned.priority);
+                assert_eq!(todo.completed, owned.completed);
+                assert_eq!(todo.tags.len(), owned.tags.len());
+                assert!(todo.tags.iter().all(|t| owned.tags.contains(t)));
+                Ok(true)
+            })?,
+            1
+        );
+        assert_eq!(todos.visit(|_| Ok(true))?, 1);
+        assert_eq!(todos.visit(|_| Ok(false))?, 1);
+        Ok(())
+    }
+
+    #[test]
+    fn test_visit_many() -> anyhow::Result<()> {
+        let mut todos = Todos::new();
+        let mut todo: Cow<Todo> = make_todo!("test title", Priority::Medium, vec!["tag1", "tag2"])?;
+        todos.add(todo.clone().into_owned())?;
+        {
+            let todo_mut: &mut Todo = todo.to_mut();
+            todo_mut.title = "test title 2".to_string();
+            todos.add(todo.clone().into_owned())?;
+        }
+
+        assert_eq!(todos.len(), 2);
+        assert!(!todos.is_empty());
+        assert_eq!(todos.visit(|_| Ok(true))?, 2);
+        assert_eq!(todos.visit(|_| Ok(false))?, 1);
+        assert!(todos.visit(|_| anyhow::bail!("Error")).is_err());
+        Ok(())
+    }
 }

@@ -57,9 +57,13 @@ fn main() -> Result<()> {
 
 fn print_todos(args: &ListArgs, todos: &Todos) -> Result<()> {
     let verbose = args.verbose.unwrap_or(false);
-    // let trimmed = process::filter_for_list(args, todos)?;
-    let trimmed = todos.filter()?;
-    for todo in trimmed.iter() {
+    let filter_tags: &[String] = args.tags.as_deref().unwrap_or_default();
+    
+    todos.visit(|todo| {
+        if !todo.has_any(filter_tags.iter().map(String::as_str)) {
+            return Ok(true);
+        }
+        
         if verbose {
             println!(
                 "{} {}: {}",
@@ -76,6 +80,10 @@ fn print_todos(args: &ListArgs, todos: &Todos) -> Result<()> {
                 todo.priority
             );
         }
-    }
+
+        
+        Ok(true)
+    })?;
+
     Ok(())
 }

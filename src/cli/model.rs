@@ -72,7 +72,3 @@ pub struct EditArgs {
 pub struct CompleteArgs {
     pub id: TodoID,
 }
-
-// pub struct CommandResult {
-//     todos: Vec<Todo>,
-// }
