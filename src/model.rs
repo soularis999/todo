@@ -269,7 +269,11 @@ impl Todo {
      * ```
      */
     pub fn new() -> EditTodo<'static> {
-        EditTodo::owned(Todo::default())
+        EditTodo::owned(Todo {
+            // set created_ad to the current time
+            created_at: chrono::Utc::now(),
+            ..Default::default()
+        })
     }
 
     /**
@@ -346,7 +350,7 @@ pub struct EditTodo<'a> {
     pub priority: Option<Priority>,
     pub completed: Option<bool>,
     pub tags: Option<Vec<String>>,
-
+    
     todo: TodoSource<'a>,
 }
 
@@ -692,5 +696,15 @@ mod tests {
         assert_eq!(todos.visit(|_| Ok(false))?, 1);
         assert!(todos.visit(|_| anyhow::bail!("Error")).is_err());
         Ok(())
+    }
+
+    #[test]
+    fn test_new_todo_created_at() {
+        let now = chrono::Utc::now();
+        let todo = Todo::new().finish().unwrap(); // Assuming a new function or method to create a Todo instance directly, or mock EditTodo accordingly.
+        
+        // Assert that created_at is within a small delta of the current time
+        assert!(todo.created_at >= now - chrono::Duration::seconds(1));
+        assert!(todo.created_at <= now + chrono::Duration::seconds(1));
     }
 }

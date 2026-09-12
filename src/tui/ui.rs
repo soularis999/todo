@@ -1,31 +1,17 @@
-use ratatui::{Frame, layout::{Alignment, Constraint, Direction, Layout}, style::{Color, Modifier, Style}, text::{Line, Span}, widgets::{Block, Borders, List, ListItem, Paragraph}};
+use ratatui::{Frame, layout::{Alignment, Constraint, Direction, Layout}, style::{Color, Modifier, Style}, text::{Line, Span}, widgets::{Block, Borders, List, ListItem, Paragraph, block::Title}};
 
 use crate::{model::Priority, tui::{app::{self}, model::InputMode}};
 
 
 pub fn draw(frame: &mut Frame, app: &app::UiApp) {
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .margin(1)
-        .constraints([
-            Constraint::Length(3),
-            Constraint::Min(0),
-            Constraint::Length(3),
-        ])
+    let chunks = generate_layout()
         .split(frame.size());
 
     // Title
-    let title = Paragraph::new("📝 Todos")
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Cyan)),
-        )
-        .style(Style::default().fg(Color::White).add_modifier(Modifier::BOLD))
-        .alignment(Alignment::Center);
+    let title = generate_title();
     frame.render_widget(title, chunks[0]);
 
-    let items: Vec<ListItem> = app
+    let items: Vec<ListItem> = app.
         .todo_iter()
         .enumerate()
         .map(|(index, todo)| {
@@ -106,4 +92,26 @@ pub fn draw(frame: &mut Frame, app: &app::UiApp) {
         .block(Block::default().borders(Borders::ALL))
         .style(error_style)
         .alignment(Alignment::Right), right);
+}
+
+fn generate_layout() -> Layout {
+    Layout::default()
+        .direction(Direction::Vertical)
+        .margin(1)
+        .constraints([
+            Constraint::Length(3),
+            Constraint::Min(0),
+            Constraint::Length(3),
+        ])
+}
+
+fn generate_title<'a>() -> Paragraph<'a> { 
+    Paragraph::new("📝 Todos")
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Cyan)),
+        )
+        .style(Style::default().fg(Color::White).add_modifier(Modifier::BOLD))
+        .alignment(Alignment::Center)
 }

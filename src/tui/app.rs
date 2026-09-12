@@ -1,5 +1,6 @@
 use std::io::stdout;
 
+use crate::model::Todos;
 use crate::{io::save_todos, model::Todo};
 use crate::tui::model::{DeleteConfirmState, InputMode, InputModeState};
 use anyhow::Result;
@@ -12,14 +13,14 @@ use ratatui::{Terminal, prelude::CrosstermBackend};
 
 #[derive(Debug)]
 pub struct UiApp {
-    todos: Vec<Todo>,
+    todos: Todos,
     state: ratatui::widgets::ListState,
     mode: InputMode,
     error: Option<String>,
 }
 
 impl UiApp {
-    pub fn new(todos: Vec<Todo>) -> Self {
+    pub fn new(todos: Todos) -> Self {
         let state = ratatui::widgets::ListState::default();
         Self {
             todos,
@@ -27,10 +28,6 @@ impl UiApp {
             mode: InputMode::Normal,
             error: None,
         }
-    }
-
-    pub fn todo_iter(&self) -> impl Iterator<Item = &Todo> {
-        self.todos.iter()
     }
 
     pub fn len(&self) -> usize {
@@ -49,6 +46,9 @@ impl UiApp {
         self.error.as_deref()
     }
     
+    /**
+     * Sets up the rendering and delegates to event loop to start the application
+     */
     pub fn run(&mut self) -> Result<()> {
         enable_raw_mode()?;
         stdout().execute(Clear(ClearType::All))?;
@@ -64,6 +64,9 @@ impl UiApp {
         result
     }
 
+    /**
+     * Blocks on event loop
+     */
     fn run_loop(
         &mut self,
         terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>,
